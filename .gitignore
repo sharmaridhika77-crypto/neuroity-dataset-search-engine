@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+neuroity.db
+venv/
+env/
+.vscode/
