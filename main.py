@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 import time
 from fastapi import FastAPI
 import httpx
@@ -9,6 +10,12 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 init_db()
 

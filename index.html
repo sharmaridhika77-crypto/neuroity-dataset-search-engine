@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neuroity — Dataset Search</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #9aa3b2;
+    --accent: #4f8cff;
+    --accent-dim: #2c4a80;
+    --success: #4caf7d;
+    --error: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 28px 24px 8px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+  }
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input[type="text"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  button:hover { background: var(--accent-dim); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  select {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 0.85rem;
+  }
+
+  .status-line {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .status-line .ok { color: var(--success); }
+  .status-line .err { color: var(--error); }
+
+  .result-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .result-card h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+  }
+  .result-card h3 a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .result-card h3 a:hover { color: var(--accent); }
+  .result-card p {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: #cfe0ff;
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .empty, .loading {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 0;
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Neuroity Dataset Search</h1>
+  <p>Testing UI — searches GitHub, Zenodo, OpenML, HuggingFace, Figshare, UCI, OpenNeuro & Kaggle</p>
+</header>
+
+<div class="container">
+  <div class="search-bar">
+    <input type="text" id="queryInput" placeholder="Search for a dataset (e.g. eeg, iris, covid)" />
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <div class="filters">
+    <select id="sourceFilter">
+      <option value="">All sources</option>
+      <option value="github">GitHub</option>
+      <option value="zenodo">Zenodo</option>
+      <option value="openml">OpenML</option>
+      <option value="huggingface">HuggingFace</option>
+      <option value="figshare">Figshare</option>
+      <option value="uci">UCI</option>
+      <option value="openneuro">OpenNeuro</option>
+      <option value="kaggle">Kaggle</option>
+    </select>
+    <select id="sortFilter">
+      <option value="relevance">Relevance</option>
+      <option value="latest">Latest</option>
+      <option value="downloads">Downloads</option>
+      <option value="alphabetical">Alphabetical</option>
+    </select>
+  </div>
+
+  <div class="status-line" id="statusLine"></div>
+  <div id="results">
+    <div class="empty">Type a search term above and press Search.</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "https://neuroity-dataset-search-engine.onrender.com";
+
+const queryInput = document.getElementById("queryInput");
+const searchBtn = document.getElementById("searchBtn");
+const sourceFilter = document.getElementById("sourceFilter");
+const sortFilter = document.getElementById("sortFilter");
+const resultsDiv = document.getElementById("results");
+const statusLine = document.getElementById("statusLine");
+
+async function runSearch() {
+  const q = queryInput.value.trim();
+  if (!q) return;
+
+  searchBtn.disabled = true;
+  resultsDiv.innerHTML = '<div class="loading">Searching across sources…</div>';
+  statusLine.textContent = "";
+
+  const params = new URLSearchParams({ q });
+  if (sourceFilter.value) params.set("source", sourceFilter.value);
+  if (sortFilter.value) params.set("sort", sortFilter.value);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/search?${params.toString()}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      resultsDiv.innerHTML = '<div class="empty">Search failed. Check the server console.</div>';
+      searchBtn.disabled = false;
+      return;
+    }
+
+    renderStatus(data.meta ? data.meta.source_status : {});
+    renderResults(data.results || [], data.total_results || 0);
+  } catch (err) {
+    resultsDiv.innerHTML = `<div class="empty">Could not reach the API at ${API_BASE}. Is the server running? (${err.message})</div>`;
+  }
+
+  searchBtn.disabled = false;
+}
+
+function renderStatus(sourceStatus) {
+  if (!sourceStatus) { statusLine.textContent = ""; return; }
+  const parts = Object.entries(sourceStatus).map(([src, status]) => {
+    const ok = String(status).toLowerCase().includes("ok") || String(status).toLowerCase().includes("success");
+    const cls = ok ? "ok" : "err";
+    return `<span class="${cls}">${src}: ${status}</span>`;
+  });
+  statusLine.innerHTML = parts.join(" &nbsp;·&nbsp; ");
+}
+
+function renderResults(results, total) {
+  if (results.length === 0) {
+    resultsDiv.innerHTML = '<div class="empty">No results found for this query.</div>';
+    return;
+  }
+
+  resultsDiv.innerHTML = `<div class="status-line">${total} result(s) found</div>` +
+    results.map(r => `
+      <div class="result-card">
+        <span class="tag">${escapeHtml(r.source || "unknown")}</span>
+        <h3><a href="${escapeAttr(r.source_url || '#')}" target="_blank" rel="noopener">${escapeHtml(r.title || "Untitled")}</a></h3>
+        <p>${escapeHtml(r.description || "No description available.")}</p>
+      </div>
+    `).join("");
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+function escapeAttr(str) {
+  return String(str).replace(/"/g, "&quot;");
+}
+
+searchBtn.addEventListener("click", runSearch);
+queryInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runSearch();
+});
+</script>
+
+</body>
+</html>
