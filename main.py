@@ -107,7 +107,16 @@ async def fetch_uci(client, q):
             params={"search": q},
             timeout=5.0
         )
-        return {"ok": True, "data": response.json()}
+        # Pehle check karo status code aur content valid JSON hai ya nahi
+        if response.status_code != 200:
+            return {"ok": False, "error": f"HTTP {response.status_code} - endpoint may be outdated"}
+
+        try:
+            data = response.json()
+        except Exception:
+            return {"ok": False, "error": "Response was not valid JSON (endpoint likely changed)"}
+
+        return {"ok": True, "data": data}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -149,11 +158,11 @@ async def fetch_kaggle(query: str):
     try:
         print("Before subprocess")
         result = subprocess.run(
-            print("After subprocess")
             ["kaggle", "datasets", "list", "-s", query, "--csv"],
             capture_output=True,
             text=True
         )
+        print("After subprocess")
         print("Return Code:", result.returncode)
         print("STDOUT:", result.stdout[:300])
         print("STDERR:", result.stderr)
@@ -163,7 +172,6 @@ async def fetch_kaggle(query: str):
 
         reader = csv.DictReader(StringIO(result.stdout))
         datasets = []
-
         for row in reader:
             datasets.append({
                 "title": row.get("title", ""),
@@ -176,9 +184,7 @@ async def fetch_kaggle(query: str):
                 "downloads": 0
             })
         print("Kaggle datasets found:", len(datasets))
-        print(row)
         return datasets
-
     except Exception as e:
         print("Kaggle Error:", e)
         return []
