@@ -350,6 +350,9 @@ async def search(q: str, source: str = None, sort: str = "relevance", page: int 
     else:
         source_status["Kaggle"] = "No Results"
 
+    if source:
+        clean_results = [r for r in clean_results if r["source"] == source]
+
     if sort == "latest":
         clean_results.sort(key=lambda r: r["updated_at"] or "", reverse=True)
     elif sort == "downloads":
