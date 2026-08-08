@@ -99,7 +99,6 @@ async def fetch_figshare(client, q):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-
 async def fetch_uci(client, q):
     try:
         response = await client.get(
@@ -154,18 +153,14 @@ import csv
 from io import StringIO
 
 async def fetch_kaggle(query: str):
-    print("fetch_kaggle called")
     try:
-        print("Before subprocess")
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["kaggle", "datasets", "list", "-s", query, "--csv"],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=15
         )
-        print("After subprocess")
-        print("Return Code:", result.returncode)
-        print("STDOUT:", result.stdout[:300])
-        print("STDERR:", result.stderr)
 
         if result.returncode != 0:
             return []
@@ -178,12 +173,8 @@ async def fetch_kaggle(query: str):
                 "description": "",
                 "source": "kaggle",
                 "source_url": f"https://www.kaggle.com/datasets/{row.get('ref', '')}",
-                "download_url": f"https://www.kaggle.com/datasets/{row.get('ref', '')}",
-                "license": None,
-                "updated_at": None,
-                "downloads": 0
+                "download_url": f"https://www.kaggle.com/datasets/{row.get('ref', '')}"
             })
-        print("Kaggle datasets found:", len(datasets))
         return datasets
     except Exception as e:
         print("Kaggle Error:", e)
